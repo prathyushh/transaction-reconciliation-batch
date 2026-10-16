@@ -1,19 +1,21 @@
-package com.example.springbatch.batch;
+package com.example.springbatch.batch.processor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+
+import com.example.springbatch.batch.writer.ReconciliationProcessingResult;
 import com.example.springbatch.dto.TransactionRequestDto;
 import com.example.springbatch.entity.TransactionRecord;
 import com.example.springbatch.exception.InvalidCsvRecordException;
+
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.batch.infrastructure.item.ItemProcessor;
 
+@RequiredArgsConstructor
 public class TransactionItemProcessor implements ItemProcessor<TransactionRequestDto, ReconciliationProcessingResult> {
 	private final long runId;
-
-	public TransactionItemProcessor(long runId) {
-		this.runId = runId;
-	}
 
 	@Override
 	public ReconciliationProcessingResult process(TransactionRequestDto input) {
@@ -21,6 +23,9 @@ public class TransactionItemProcessor implements ItemProcessor<TransactionReques
 			if (input == null) {
 				throw new InvalidCsvRecordException("Empty record");
 			}
+//            if(input.getLineNumber()==500) {
+//            	throw new RuntimeException("Pause");
+//            }
 			String transactionId = required(input.getTransactionId(), "transaction_id");
 			String accountNumber = required(input.getAccountNumber(), "account_number");
 			String transactionDate = required(input.getTransactionDate(), "transaction_date");
@@ -45,10 +50,10 @@ public class TransactionItemProcessor implements ItemProcessor<TransactionReques
 			} catch (RuntimeException ex) {
 				throw new InvalidCsvRecordException("Invalid transaction date");
 			}
-//            if (date.isAfter(LocalDate.now())) {
-//                throw new InvalidCsvRecordException(
-//                        "Transaction date is in the future");
-//            }
+			// if (date.isAfter(LocalDate.now())) {
+			// throw new InvalidCsvRecordException(
+			// "Transaction date is in the future");
+			// }
 			BigDecimal amount;
 			try {
 				amount = new BigDecimal(amountValue);
@@ -63,9 +68,9 @@ public class TransactionItemProcessor implements ItemProcessor<TransactionReques
 					.accountNumber(accountNumber).transactionDate(date).amount(amount).currency(currency)
 					.transactionType(transactionType).description(input.getDescription()).createdAt(now).updatedAt(now)
 					.build();
-			return new ReconciliationProcessingResult(input, record, "VALID", "INSERT", null);
+			return new ReconciliationProcessingResult(input, record, "VALID", "INSERT", null, null);
 		} catch (InvalidCsvRecordException ex) {
-			return new ReconciliationProcessingResult(input, null, "INVALID_RECORD", "SKIP", ex.getMessage());
+			return new ReconciliationProcessingResult(input, null, "INVALID_RECORD", "SKIP", ex.getMessage(), null);
 		}
 	}
 

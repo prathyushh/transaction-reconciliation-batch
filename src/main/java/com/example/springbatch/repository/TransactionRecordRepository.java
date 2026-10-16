@@ -8,7 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import com.example.springbatch.entity.TransactionRecord;
 
-public interface TransactionRecordRepository extends JpaRepository<TransactionRecord, TransactionRecord.TransactionRecordId> {
+public interface TransactionRecordRepository
+		extends JpaRepository<TransactionRecord, TransactionRecord.TransactionRecordId> {
 	Optional<TransactionRecord> findByRunIdAndTransactionId(Long runId, String transactionId);
 
 	boolean existsByRunIdAndTransactionId(Long runId, String transactionId);

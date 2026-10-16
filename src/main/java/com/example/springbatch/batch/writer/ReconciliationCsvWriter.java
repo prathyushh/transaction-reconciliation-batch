@@ -1,4 +1,4 @@
-package com.example.springbatch.batch;
+package com.example.springbatch.batch.writer;
 
 import java.io.BufferedWriter;
 import java.nio.charset.StandardCharsets;
@@ -24,16 +24,24 @@ public class ReconciliationCsvWriter {
 		if (parent != null) {
 			Files.createDirectories(parent);
 		}
-		Files.writeString(outputPath, "line_number,transaction_id,status,action,error_message" + System.lineSeparator(),
+		Files.writeString(outputPath,
+				"line_number,transaction_id,status,action,error_message,previous_amount,new_amount"
+						+ System.lineSeparator(),
 				StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 	}
 
 	public synchronized void writeResults(List<ReconciliationProcessingResult> results) throws Exception {
-		List<ReconciliationProcessingResult> rows = results.stream().filter(
-				result -> "INVALID_RECORD".equals(result.status()) || "DUPLICATE_IN_CSV1".equals(result.status()))
+		List<ReconciliationProcessingResult> rows = results.stream()
+				.filter(result -> "INVALID_RECORD".equals(result.status())
+						|| "DUPLICATE_IN_CSV1".equals(result.status()) || "MISMATCH".equals(result.status())
+						|| "MISSING_IN_DATABASE".equals(result.status()))
 				.toList();
 		if (rows.isEmpty()) {
 			return;
+		}
+		Path parent = outputPath.toAbsolutePath().getParent();
+		if (parent != null) {
+			Files.createDirectories(parent);
 		}
 		try (BufferedWriter writer = Files.newBufferedWriter(outputPath, StandardCharsets.UTF_8,
 				StandardOpenOption.CREATE, StandardOpenOption.APPEND);
@@ -42,8 +50,11 @@ public class ReconciliationCsvWriter {
 				String transactionId = result.input() == null || result.input().getTransactionId() == null ? ""
 						: result.input().getTransactionId();
 				String errorMessage = result.errorMessage() == null ? "" : result.errorMessage();
+				String previousAmount = result.previousAmount() == null ? "" : result.previousAmount().toPlainString();
+				String newAmount = "MISMATCH".equals(result.status()) && result.input() != null
+						&& result.input().getAmount() != null ? result.input().getAmount() : "";
 				printer.printRecord(result.input() == null ? "" : result.input().getLineNumber(), transactionId,
-						result.status(), result.action(), errorMessage);
+						result.status(), result.action(), errorMessage, previousAmount, newAmount);
 			}
 		}
 	}

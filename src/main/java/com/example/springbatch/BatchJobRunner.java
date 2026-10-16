@@ -12,7 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
-import com.example.springbatch.batch.ReconciliationCsvWriter;
+import com.example.springbatch.batch.writer.ReconciliationCsvWriter;
 
 @Component
 @RequiredArgsConstructor

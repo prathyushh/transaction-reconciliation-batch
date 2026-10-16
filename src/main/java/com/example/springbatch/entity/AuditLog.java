@@ -1,6 +1,7 @@
 package com.example.springbatch.entity;
 
 import java.time.LocalDateTime;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -27,7 +28,10 @@ public class AuditLog {
 	private LocalDateTime eventTimestamp;
 	private String details;
 	private Long totalRecords;
+	private Long loadedRecords;
 	private Long matchedRecords;
 	private Long mismatchedRecords;
-	private Long failedRecords;
+	private Long duplicateRecords;
+	private Long invalidRecords;
+	private Long missingInDatabaseRecords;
 }

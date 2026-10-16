@@ -1,4 +1,4 @@
-package com.example.springbatch.batch;
+package com.example.springbatch.batch.tasklet;
 
 import java.util.List;
 import com.example.springbatch.service.FileValidationService;
