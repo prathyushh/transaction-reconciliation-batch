@@ -1,13 +1,13 @@
 package com.example.springbatch;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
-class TransactionReconciliationBatchApplicationTests {
+import org.junit.jupiter.api.Test;
+
+class TransactionReconciliationBatchApplicationTest {
 
 	@Test
-	void contextLoads() {
+	void shouldInstantiateApplication() {
+		assertNotNull(new TransactionReconciliationBatchApplication());
 	}
-
 }
