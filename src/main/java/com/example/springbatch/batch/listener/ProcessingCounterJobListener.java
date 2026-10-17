@@ -9,6 +9,7 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.springbatch.constants.Messages;
 import com.example.springbatch.entity.AuditLog;
 import com.example.springbatch.repository.AuditLogRepository;
 import com.example.springbatch.service.AuditLogService;
@@ -18,7 +19,6 @@ import lombok.RequiredArgsConstructor;
 @Component
 @RequiredArgsConstructor
 public class ProcessingCounterJobListener implements JobExecutionListener {
-	private static final String SUMMARY_EVENT = "PROCESSING_SUMMARY";
 	private final AuditLogService auditLogService;
 	private final AuditLogRepository auditLogRepository;
 	private final JobRepository jobRepository;
@@ -30,7 +30,8 @@ public class ProcessingCounterJobListener implements JobExecutionListener {
 		List<Long> executionIds = jobRepository.getJobExecutions(jobExecution.getJobInstance()).stream()
 				.map(JobExecution::getId).filter(id -> id != null && !id.equals(currentExecutionId)).toList();
 		AuditLog existingSummary = executionIds.isEmpty() ? null
-				: auditLogRepository.findFirstByJobExecutionIdInAndEventTypeOrderByIdAsc(executionIds, SUMMARY_EVENT)
+				: auditLogRepository
+						.findFirstByJobExecutionIdInAndEventTypeOrderByIdAsc(executionIds, Messages.SUMMARY_EVENT)
 						.orElse(null);
 		if (existingSummary != null) {
 			existingSummary.setJobExecutionId(currentExecutionId);

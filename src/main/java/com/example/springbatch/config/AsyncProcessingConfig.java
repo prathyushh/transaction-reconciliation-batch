@@ -16,7 +16,6 @@ import com.example.springbatch.dto.TransactionRequestDto;
 
 @Configuration
 public class AsyncProcessingConfig {
-
 	@Bean
 	public TaskExecutor transactionProcessorExecutor(@Value("${app.batch.processor.core-pool-size}") int corePoolSize,
 			@Value("${app.batch.processor.max-pool-size}") int maxPoolSize,
@@ -50,14 +49,12 @@ public class AsyncProcessingConfig {
 		AsyncItemProcessor<TransactionRequestDto, ReconciliationProcessingResult> processor = new AsyncItemProcessor<>(
 				reconciliationProcessor);
 		processor.setTaskExecutor(transactionProcessorExecutor);
-
 		return processor;
 	}
 
 	@Bean
 	public AsyncItemWriter<ReconciliationProcessingResult> asyncReconciliationWriter(
 			ReconciliationItemWriter reconciliationItemWriter) {
-
 		return new AsyncItemWriter<>(reconciliationItemWriter);
 	}
 }

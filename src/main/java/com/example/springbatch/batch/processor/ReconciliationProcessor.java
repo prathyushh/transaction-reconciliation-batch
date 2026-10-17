@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import org.springframework.batch.infrastructure.item.ItemProcessor;
 
 import com.example.springbatch.batch.writer.ReconciliationProcessingResult;
+import com.example.springbatch.constants.Messages;
 import com.example.springbatch.dto.TransactionRequestDto;
 import com.example.springbatch.entity.TransactionRecord;
 import com.example.springbatch.repository.TransactionRecordRepository;
@@ -25,14 +26,14 @@ public class ReconciliationProcessor implements ItemProcessor<TransactionRequest
 		TransactionRecord transaction = transactionRecordRepository
 				.findByJobInstanceIdAndTransactionId(jobInstanceId, transactionId).orElse(null);
 		if (transaction == null) {
-			return new ReconciliationProcessingResult(input, null, "MISSING_IN_DATABASE", "REPORT",
+			return new ReconciliationProcessingResult(input, null, Messages.MISSING_IN_DATABASE, "REPORT",
 					"Transaction not found in database", null);
 		}
 		BigDecimal databaseAmount = transaction.getAmount();
 		if (databaseAmount.compareTo(csv2Amount) == 0) {
 			return new ReconciliationProcessingResult(input, transaction, "MATCH", "NONE", null, databaseAmount);
 		}
-		return new ReconciliationProcessingResult(input, transaction, "MISMATCH", "UPDATE_AMOUNT",
+		return new ReconciliationProcessingResult(input, transaction, Messages.MISMATCH, "UPDATE_AMOUNT",
 				"Database amount updated to CSV2 amount", databaseAmount);
 	}
 }

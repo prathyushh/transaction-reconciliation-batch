@@ -1,4 +1,3 @@
-
 package com.example.springbatch.config;
 
 import java.util.concurrent.Future;
@@ -30,11 +29,9 @@ import com.example.springbatch.repository.TransactionRecordRepository;
 
 @Configuration
 public class BatchConfig {
-
 	@Bean
 	public Step csv1FileValidationStep(JobRepository repository, PlatformTransactionManager transactionManager,
 			@Qualifier("csv1FileValidationTasklet") FileValidationTasklet tasklet) {
-
 		return new StepBuilder("csv1FileValidationStep", repository).tasklet(tasklet, transactionManager).build();
 	}
 
@@ -44,7 +41,6 @@ public class BatchConfig {
 			@Qualifier("asyncTransactionProcessor") AsyncItemProcessor<TransactionRequestDto, ReconciliationProcessingResult> asyncTransactionProcessor,
 			@Qualifier("asyncTransactionWriter") AsyncItemWriter<ReconciliationProcessingResult> asyncTransactionWriter,
 			@Value("${app.batch.chunk-size}") int chunkSize) {
-
 		return new StepBuilder("csv1LoadingStep", repository)
 				.<TransactionRequestDto, Future<ReconciliationProcessingResult>>chunk(chunkSize)
 				.transactionManager(transactionManager).reader(csv1ItemReader).processor(asyncTransactionProcessor)
@@ -54,7 +50,6 @@ public class BatchConfig {
 	@Bean
 	public Step csv2FileValidationStep(JobRepository repository, PlatformTransactionManager transactionManager,
 			@Qualifier("csv2FileValidationTasklet") FileValidationTasklet tasklet) {
-
 		return new StepBuilder("csv2FileValidationStep", repository).tasklet(tasklet, transactionManager).build();
 	}
 
@@ -64,7 +59,6 @@ public class BatchConfig {
 			@Qualifier("asyncReconciliationProcessor") AsyncItemProcessor<TransactionRequestDto, ReconciliationProcessingResult> asyncReconciliationProcessor,
 			@Qualifier("asyncReconciliationWriter") AsyncItemWriter<ReconciliationProcessingResult> asyncReconciliationWriter,
 			@Value("${app.batch.chunk-size}") int chunkSize) {
-
 		return new StepBuilder("csv2ReconciliationStep", repository)
 				.<TransactionRequestDto, Future<ReconciliationProcessingResult>>chunk(chunkSize)
 				.transactionManager(transactionManager).reader(csv2ItemReader).processor(asyncReconciliationProcessor)
@@ -80,17 +74,14 @@ public class BatchConfig {
 	@Bean
 	@StepScope
 	public ReconciliationProcessor reconciliationProcessor(TransactionRecordRepository transactionRecordRepository) {
-
 		return new ReconciliationProcessor(transactionRecordRepository, getCurrentJobInstanceId());
 	}
 
 	private long getCurrentJobInstanceId() {
 		StepContext context = StepSynchronizationManager.getContext();
-
 		if (context == null) {
 			throw new IllegalStateException("No active Spring Batch step context is available");
 		}
-
 		return context.getStepExecution().getJobExecution().getJobInstance().getInstanceId();
 	}
 
@@ -98,7 +89,6 @@ public class BatchConfig {
 	public Job transactionReconciliationJob(JobRepository repository, Step csv1FileValidationStep, Step csv1LoadingStep,
 			Step csv2FileValidationStep, Step csv2ReconciliationStep,
 			ProcessingCounterJobListener processingCounterJobListener) {
-
 		return new JobBuilder("transactionReconciliationJob", repository).listener(processingCounterJobListener)
 				.start(csv1FileValidationStep).next(csv1LoadingStep).next(csv2FileValidationStep)
 				.next(csv2ReconciliationStep).build();
