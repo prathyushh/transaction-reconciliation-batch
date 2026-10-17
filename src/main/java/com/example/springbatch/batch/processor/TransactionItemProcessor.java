@@ -9,6 +9,8 @@ import com.example.springbatch.constants.Messages;
 import com.example.springbatch.dto.TransactionRequestDto;
 import com.example.springbatch.entity.TransactionRecord;
 import com.example.springbatch.exception.InvalidCsvRecordException;
+import com.example.springbatch.enums.ReconciliationAction;
+import com.example.springbatch.enums.ReconciliationStatus;
 
 import lombok.RequiredArgsConstructor;
 
@@ -65,9 +67,11 @@ public class TransactionItemProcessor implements ItemProcessor<TransactionReques
 					.transactionId(transactionId).accountNumber(accountNumber).transactionDate(date).amount(amount)
 					.currency(currency).transactionType(transactionType).description(input.getDescription())
 					.createdAt(now).updatedAt(now).build();
-			return new ReconciliationProcessingResult(input, record, "VALID", "INSERT", null, null);
+			return new ReconciliationProcessingResult(input, record, ReconciliationStatus.VALID,
+					ReconciliationAction.INSERT, null, null);
 		} catch (InvalidCsvRecordException ex) {
-			return new ReconciliationProcessingResult(input, null, "INVALID_RECORD", "SKIP", ex.getMessage(), null);
+			return new ReconciliationProcessingResult(input, null, ReconciliationStatus.INVALID_RECORD,
+					ReconciliationAction.SKIP, ex.getMessage(), null);
 		}
 	}
 

@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.example.springbatch.constants.Messages;
+import com.example.springbatch.enums.ReconciliationStatus;
 
 @Component
 public class ReconciliationCsvWriter {
@@ -35,9 +36,10 @@ public class ReconciliationCsvWriter {
 
 	public synchronized void writeResults(List<ReconciliationProcessingResult> results) throws Exception {
 		List<ReconciliationProcessingResult> rows = results.stream()
-				.filter(result -> Messages.INVALID_RECORD.equals(result.status())
-						|| Messages.DUPLICATE_IN_CSV_1.equals(result.status()) || Messages.MISMATCH.equals(result.status())
-						|| Messages.MISSING_IN_DATABASE.equals(result.status()))
+				.filter(result -> result.status() == ReconciliationStatus.INVALID_RECORD
+						|| result.status() == ReconciliationStatus.DUPLICATE_IN_CSV1
+						|| result.status() == ReconciliationStatus.MISMATCH
+						|| result.status() == ReconciliationStatus.MISSING_IN_DATABASE)
 				.toList();
 		if (rows.isEmpty()) {
 			return;
@@ -60,11 +62,11 @@ public class ReconciliationCsvWriter {
 						: result.input().getTransactionId();
 				String errorMessage = result.errorMessage() == null ? "" : result.errorMessage();
 				String previousAmount = result.previousAmount() == null ? "" : result.previousAmount().toPlainString();
-				String newAmount = Messages.MISMATCH.equals(result.status()) && result.input() != null
+				String newAmount = result.status() == ReconciliationStatus.MISMATCH && result.input() != null
 						&& result.input().getAmount() != null ? result.input().getAmount() : "";
 				printer.printRecord(jobInstanceId, jobExecutionId == null ? "" : jobExecutionId,
-						result.input() == null ? "" : result.input().getLineNumber(), transactionId, result.status(),
-						result.action(), errorMessage, previousAmount, newAmount);
+						result.input() == null ? "" : result.input().getLineNumber(), transactionId,
+						result.status().name(), result.action().name(), errorMessage, previousAmount, newAmount);
 			}
 		}
 	}

@@ -16,12 +16,9 @@ public class Messages {
 	public static final String SUMMARY_EVENT = "PROCESSING_SUMMARY";
 	public static final String AUDIT_DETAIL = "CSV1 loading and CSV2 reconciliation summary";
 	public static final String TRANSACTION_ALREADY_EXISTS = "Transaction already exists for this job instance";
-	public static final String DUPLICATE_IN_CSV_1 = "DUPLICATE_IN_CSV1";
 	public static final String DUPLICATE_TRANSACTION_ID = "Duplicate transaction_id in CSV1";
-	public static final String MISSING_IN_DATABASE = "MISSING_IN_DATABASE";
+
 	public static final String CSV_OUTPUTFILE_HEADER = "job_instance_id,job_execution_id,line_number,transaction_id,status,action,error_message,previous_amount,new_amount";
-	public static final String MISMATCH = "MISMATCH";
-	public static final String INVALID_RECORD = "INVALID_RECORD";
 
 	public static final String EMPTY_RECORD = "Empty record";
 	public static final String TRANSACTION_ID_EXCEEDS_LIMIT = "Transaction ID exceeds 50 characters";
@@ -41,9 +38,4 @@ public class Messages {
 
 	public static final String TRANSACTION_NOT_FOUND_IN_DATABASE = "Transaction not found in database";
 	public static final String DATABASE_AMOUNT_UPDATED_TO_CSV2 = "Database amount updated to CSV2 amount";
-	public static final String MATCH = "MATCH";
-	public static final String REPORT = "REPORT";
-	public static final String NONE = "NONE";
-	public static final String UPDATE_AMOUNT = "UPDATE_AMOUNT";
-
 }

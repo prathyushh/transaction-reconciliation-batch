@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.springbatch.constants.Messages;
 import com.example.springbatch.entity.TransactionRecord;
+import com.example.springbatch.enums.ReconciliationAction;
+import com.example.springbatch.enums.ReconciliationStatus;
 import com.example.springbatch.service.AuditLogService;
 
 import lombok.RequiredArgsConstructor;
@@ -51,8 +53,9 @@ public class TransactionItemWriter implements ItemWriter<ReconciliationProcessin
 			TransactionRecord transaction = result.transaction();
 			String transactionId = transaction.getTransactionId();
 			if (!seenInChunk.add(transactionId)) {
-				csvRows.add(new ReconciliationProcessingResult(result.input(), null, Messages.DUPLICATE_IN_CSV_1, "SKIP",
-						Messages.DUPLICATE_TRANSACTION_ID, null));
+				csvRows.add(
+						new ReconciliationProcessingResult(result.input(), null, ReconciliationStatus.DUPLICATE_IN_CSV1,
+								ReconciliationAction.SKIP, Messages.DUPLICATE_TRANSACTION_ID, null));
 				duplicateCount++;
 				continue;
 			}
@@ -76,7 +79,8 @@ public class TransactionItemWriter implements ItemWriter<ReconciliationProcessin
 					ReconciliationProcessingResult original = results.stream().filter(
 							result -> result.isValid() && result.transaction().getTransactionId().equals(transactionId))
 							.findFirst().orElseThrow();
-					csvRows.add(new ReconciliationProcessingResult(original.input(), null, Messages.DUPLICATE_IN_CSV_1, "SKIP",
+					csvRows.add(new ReconciliationProcessingResult(original.input(), null,
+							ReconciliationStatus.DUPLICATE_IN_CSV1, ReconciliationAction.SKIP,
 							Messages.TRANSACTION_ALREADY_EXISTS, null));
 					duplicateCount++;
 				} else {

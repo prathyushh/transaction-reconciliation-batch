@@ -3,14 +3,16 @@ package com.example.springbatch.batch.writer;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+
 import org.springframework.batch.infrastructure.item.Chunk;
 import org.springframework.batch.infrastructure.item.ItemWriter;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-import com.example.springbatch.constants.Messages;
+
 import com.example.springbatch.entity.TransactionRecord;
 import com.example.springbatch.repository.TransactionRecordRepository;
 import com.example.springbatch.service.AuditLogService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -36,8 +38,8 @@ public class ReconciliationItemWriter implements ItemWriter<ReconciliationProces
 		long missingCount = 0;
 		for (ReconciliationProcessingResult result : results) {
 			switch (result.status()) {
-			case Messages.MATCH -> matchedCount++;
-			case Messages.MISMATCH -> {
+			case MATCH -> matchedCount++;
+			case MISMATCH -> {
 				TransactionRecord transaction = result.transaction();
 				if (transaction != null && result.input() != null && result.input().getAmount() != null) {
 					BigDecimal csv2Amount = new BigDecimal(result.input().getAmount());
@@ -49,7 +51,7 @@ public class ReconciliationItemWriter implements ItemWriter<ReconciliationProces
 					log.warn("Cannot update transaction amount because the transaction, input, or CSV2 amount is null");
 				}
 			}
-			case Messages.MISSING_IN_DATABASE -> missingCount++;
+			case MISSING_IN_DATABASE -> missingCount++;
 			default -> log.debug("No reconciliation counter update for status {}", result.status());
 			}
 		}
