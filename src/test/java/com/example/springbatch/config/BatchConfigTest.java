@@ -1,9 +1,11 @@
+
 package com.example.springbatch.config;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
-import java.util.List;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -83,10 +85,12 @@ class BatchConfigTest {
 	@Test
 	void shouldCreateJobWithFourSteps() {
 		JobRepository repository = mock(JobRepository.class);
+
 		Step csv1Validation = mock(Step.class);
 		Step csv1Loading = mock(Step.class);
 		Step csv2Validation = mock(Step.class);
 		Step csv2Reconciliation = mock(Step.class);
+
 		ProcessingCounterJobListener listener = mock(ProcessingCounterJobListener.class);
 
 		Job job = config.transactionReconciliationJob(repository, csv1Validation, csv1Loading, csv2Validation,
@@ -115,15 +119,13 @@ class BatchConfigTest {
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	void shouldCreateCsv1LoadingStep() {
-		@SuppressWarnings("unchecked")
 		FlatFileItemReader<TransactionRequestDto> reader = mock(FlatFileItemReader.class);
 
-		@SuppressWarnings("unchecked")
 		AsyncItemProcessor<TransactionRequestDto, ReconciliationProcessingResult> processor = mock(
 				AsyncItemProcessor.class);
 
-		@SuppressWarnings("unchecked")
 		AsyncItemWriter<ReconciliationProcessingResult> writer = mock(AsyncItemWriter.class);
 
 		Step step = config.csv1LoadingStep(mock(JobRepository.class), mock(PlatformTransactionManager.class), reader,
@@ -134,15 +136,13 @@ class BatchConfigTest {
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	void shouldCreateCsv2ReconciliationStep() {
-		@SuppressWarnings("unchecked")
 		FlatFileItemReader<TransactionRequestDto> reader = mock(FlatFileItemReader.class);
 
-		@SuppressWarnings("unchecked")
 		AsyncItemProcessor<TransactionRequestDto, ReconciliationProcessingResult> processor = mock(
 				AsyncItemProcessor.class);
 
-		@SuppressWarnings("unchecked")
 		AsyncItemWriter<ReconciliationProcessingResult> writer = mock(AsyncItemWriter.class);
 
 		Step step = config.csv2ReconciliationStep(mock(JobRepository.class), mock(PlatformTransactionManager.class),

@@ -1,152 +1,214 @@
 package com.example.springbatch.batch.writer;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.batch.core.job.JobExecution;
+import org.springframework.batch.core.job.JobInstance;
+import org.springframework.batch.core.scope.context.StepSynchronizationManager;
+import org.springframework.batch.core.step.StepExecution;
 import org.springframework.batch.infrastructure.item.Chunk;
 
+import com.example.springbatch.constants.Messages;
 import com.example.springbatch.dto.TransactionRequestDto;
 import com.example.springbatch.entity.TransactionRecord;
 import com.example.springbatch.enums.ReconciliationAction;
 import com.example.springbatch.enums.ReconciliationStatus;
+import com.example.springbatch.repository.AuditLogRepository;
 import com.example.springbatch.repository.TransactionRecordRepository;
-import com.example.springbatch.service.AuditLogService;
 
 class ReconciliationItemWriterTest {
 
-	private TransactionRecordRepository repository;
+	private TransactionRecordRepository transactionRepository;
 	private ReconciliationCsvWriter csvWriter;
-	private AuditLogService auditService;
+	private AuditLogRepository auditRepository;
 	private ReconciliationItemWriter writer;
 
 	@BeforeEach
 	void setUp() {
-		repository = mock(TransactionRecordRepository.class);
+		transactionRepository = mock(TransactionRecordRepository.class);
 		csvWriter = mock(ReconciliationCsvWriter.class);
-		auditService = mock(AuditLogService.class);
+		auditRepository = mock(AuditLogRepository.class);
 
-		writer = new ReconciliationItemWriter(repository, csvWriter, auditService);
+		JobInstance instance = mock(JobInstance.class);
+		JobExecution execution = mock(JobExecution.class);
+		StepExecution step = mock(StepExecution.class);
+
+		when(instance.getInstanceId()).thenReturn(100L);
+		when(execution.getJobInstance()).thenReturn(instance);
+		when(step.getJobExecution()).thenReturn(execution);
+
+		StepSynchronizationManager.register(step);
+
+		when(auditRepository.incrementCounts(anyLong(), anyLong(), anyLong(), anyLong(), anyLong(), anyLong(),
+				anyLong(), anyLong())).thenReturn(1);
+
+		writer = new ReconciliationItemWriter(transactionRepository, csvWriter, auditRepository);
 	}
 
-	private ReconciliationProcessingResult result(ReconciliationStatus status, TransactionRecord record,
+	@AfterEach
+	void clearStepContext() {
+		StepSynchronizationManager.close();
+	}
+
+	private ReconciliationProcessingResult result(ReconciliationStatus status, TransactionRecord transaction,
 			TransactionRequestDto input) {
 
-		return new ReconciliationProcessingResult(input, record, status,
+		return new ReconciliationProcessingResult(input, transaction, status,
 				status == ReconciliationStatus.MISMATCH ? ReconciliationAction.UPDATE_AMOUNT
 						: ReconciliationAction.NONE,
-				null, record == null ? null : record.getAmount());
+				null, null);
 	}
 
-	private TransactionRequestDto input(String amount) {
+	private TransactionRecord transaction(String id, String amount) {
+		return TransactionRecord.builder().jobInstanceId(100L).transactionId(id).amount(new BigDecimal(amount)).build();
+	}
+
+	private TransactionRequestDto input(String id, String amount) {
 		TransactionRequestDto dto = new TransactionRequestDto();
-		dto.setTransactionId("TX1");
+		dto.setTransactionId(id);
 		dto.setAmount(amount);
 		return dto;
-	}
-
-	private TransactionRecord record() {
-		return TransactionRecord.builder().transactionId("TX1").amount(new BigDecimal("100.00")).build();
 	}
 
 	@Test
 	void shouldIgnoreEmptyChunk() throws Exception {
 		writer.write(new Chunk<>());
 
-		verifyNoInteractions(repository, csvWriter, auditService);
+		verifyNoInteractions(transactionRepository, csvWriter, auditRepository);
 	}
 
 	@Test
 	void shouldCountMatchedRecords() throws Exception {
-		var match = result(ReconciliationStatus.MATCH, null, input("100"));
+		var match = result(ReconciliationStatus.MATCH, transaction("TX1", "100"), input("TX1", "100"));
 
 		writer.write(new Chunk<>(List.of(match)));
 
-		verifyNoInteractions(repository);
-		verify(auditService).recordCsv2Chunk(1, 1, 0, 0);
+		verifyNoInteractions(transactionRepository);
 		verify(csvWriter).writeResults(List.of(match));
+
+		verify(auditRepository).incrementCounts(100L, 1L, 0L, 1L, 0L, 0L, 0L, 0L);
 	}
 
 	@Test
 	void shouldUpdateAmountForMismatch() throws Exception {
-		TransactionRecord transaction = record();
+		TransactionRecord record = transaction("TX1", "100");
 
-		writer.write(new Chunk<>(List.of(result(ReconciliationStatus.MISMATCH, transaction, input("150.50")))));
+		var mismatch = result(ReconciliationStatus.MISMATCH, record, input("TX1", "125.50"));
 
-		assertEquals(new BigDecimal("150.50"), transaction.getAmount());
-		assertNotNull(transaction.getUpdatedAt());
+		writer.write(new Chunk<>(List.of(mismatch)));
 
-		verify(repository).save(transaction);
-		verify(auditService).recordCsv2Chunk(1, 0, 1, 0);
+		assertEquals(new BigDecimal("125.50"), record.getAmount());
+		assertNotNull(record.getUpdatedAt());
+
+		verify(transactionRepository).save(record);
+		verify(csvWriter).writeResults(List.of(mismatch));
+
+		verify(auditRepository).incrementCounts(100L, 1L, 0L, 0L, 1L, 0L, 0L, 0L);
 	}
 
 	@Test
-	void shouldNotUpdateWhenTransactionIsNull() throws Exception {
-		writer.write(new Chunk<>(List.of(result(ReconciliationStatus.MISMATCH, null, input("150")))));
+	void shouldNotUpdateMismatchWhenTransactionIsNull() throws Exception {
+		var mismatch = result(ReconciliationStatus.MISMATCH, null, input("TX1", "125.50"));
 
-		verifyNoInteractions(repository);
-		verify(auditService).recordCsv2Chunk(1, 0, 0, 0);
+		writer.write(new Chunk<>(List.of(mismatch)));
+
+		verifyNoInteractions(transactionRepository);
+		verify(csvWriter).writeResults(List.of(mismatch));
+
+		verify(auditRepository).incrementCounts(100L, 1L, 0L, 0L, 0L, 0L, 0L, 0L);
 	}
 
 	@Test
-	void shouldNotUpdateWhenInputIsNull() throws Exception {
-		writer.write(new Chunk<>(List.of(result(ReconciliationStatus.MISMATCH, record(), null))));
+	void shouldNotUpdateMismatchWhenInputIsNull() throws Exception {
+		var mismatch = result(ReconciliationStatus.MISMATCH, transaction("TX1", "100"), null);
 
-		verifyNoInteractions(repository);
-		verify(auditService).recordCsv2Chunk(1, 0, 0, 0);
+		writer.write(new Chunk<>(List.of(mismatch)));
+
+		verifyNoInteractions(transactionRepository);
+
+		verify(auditRepository).incrementCounts(100L, 1L, 0L, 0L, 0L, 0L, 0L, 0L);
 	}
 
 	@Test
-	void shouldNotUpdateWhenAmountIsNull() throws Exception {
-		writer.write(new Chunk<>(List.of(result(ReconciliationStatus.MISMATCH, record(), input(null)))));
+	void shouldNotUpdateMismatchWhenCsv2AmountIsNull() throws Exception {
+		var mismatch = result(ReconciliationStatus.MISMATCH, transaction("TX1", "100"), input("TX1", null));
 
-		verifyNoInteractions(repository);
-		verify(auditService).recordCsv2Chunk(1, 0, 0, 0);
+		writer.write(new Chunk<>(List.of(mismatch)));
+
+		verifyNoInteractions(transactionRepository);
+
+		verify(auditRepository).incrementCounts(100L, 1L, 0L, 0L, 0L, 0L, 0L, 0L);
 	}
 
 	@Test
 	void shouldCountMissingTransactions() throws Exception {
-		var missing = result(ReconciliationStatus.MISSING_IN_DATABASE, null, input("100"));
+		var missing = result(ReconciliationStatus.MISSING_IN_DATABASE, null, input("TX1", "100"));
 
 		writer.write(new Chunk<>(List.of(missing)));
 
-		verifyNoInteractions(repository);
-		verify(auditService).recordCsv2Chunk(1, 0, 0, 1);
+		verifyNoInteractions(transactionRepository);
+
 		verify(csvWriter).writeResults(List.of(missing));
+
+		verify(auditRepository).incrementCounts(100L, 1L, 0L, 0L, 0L, 0L, 0L, 1L);
 	}
 
 	@Test
-	void shouldIgnoreOtherStatusesForCounters() throws Exception {
-		var invalid = result(ReconciliationStatus.INVALID_RECORD, null, input("100"));
+	void shouldIgnoreStatusesNotUsedForReconciliationCounters() throws Exception {
+		var valid = result(ReconciliationStatus.VALID, transaction("TX1", "100"), input("TX1", "100"));
 
-		writer.write(new Chunk<>(List.of(invalid)));
+		var invalid = result(ReconciliationStatus.INVALID_RECORD, null, input("TX2", "invalid"));
 
-		verifyNoInteractions(repository);
-		verify(auditService).recordCsv2Chunk(1, 0, 0, 0);
+		writer.write(new Chunk<>(List.of(valid, invalid)));
+
+		verifyNoInteractions(transactionRepository);
+
+		verify(csvWriter).writeResults(List.of(valid, invalid));
+
+		verify(auditRepository).incrementCounts(100L, 2L, 0L, 0L, 0L, 0L, 0L, 0L);
 	}
 
 	@Test
-	void shouldHandleMultipleStatusesInOneChunk() throws Exception {
-		TransactionRecord transaction = record();
+	void shouldThrowWhenStepContextIsMissing() throws Exception {
+		StepSynchronizationManager.close();
 
-		var match = result(ReconciliationStatus.MATCH, null, input("100"));
+		var match = result(ReconciliationStatus.MATCH, transaction("TX1", "100"), input("TX1", "100"));
 
-		var mismatch = result(ReconciliationStatus.MISMATCH, transaction, input("150"));
+		IllegalStateException exception = assertThrows(IllegalStateException.class,
+				() -> writer.write(new Chunk<>(List.of(match))));
 
-		var missing = result(ReconciliationStatus.MISSING_IN_DATABASE, null, input("200"));
+		assertEquals(Messages.STEP_CONTEXT_NOT_FOUND, exception.getMessage());
 
-		var invalid = result(ReconciliationStatus.INVALID_RECORD, null, input(null));
+		verify(csvWriter).writeResults(List.of(match));
+		verifyNoInteractions(auditRepository);
+	}
 
-		writer.write(new Chunk<>(List.of(match, mismatch, missing, invalid)));
+	@Test
+	void shouldThrowWhenAuditSummaryIsNotUpdated() throws Exception {
+		when(auditRepository.incrementCounts(anyLong(), anyLong(), anyLong(), anyLong(), anyLong(), anyLong(),
+				anyLong(), anyLong())).thenReturn(0);
 
-		assertEquals(new BigDecimal("150"), transaction.getAmount());
+		var match = result(ReconciliationStatus.MATCH, transaction("TX1", "100"), input("TX1", "100"));
 
-		verify(repository).save(transaction);
-		verify(csvWriter).writeResults(List.of(match, mismatch, missing, invalid));
-		verify(auditService).recordCsv2Chunk(4, 1, 1, 1);
+		IllegalStateException exception = assertThrows(IllegalStateException.class,
+				() -> writer.write(new Chunk<>(List.of(match))));
+
+		assertTrue(exception.getMessage().contains("Audit summary not found for job instance 100"));
+
+		verify(auditRepository).incrementCounts(100L, 1L, 0L, 1L, 0L, 0L, 0L, 0L);
 	}
 }

@@ -4,7 +4,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
+import org.springframework.batch.core.scope.context.StepContext;
+import org.springframework.batch.core.scope.context.StepSynchronizationManager;
 import org.springframework.batch.infrastructure.item.Chunk;
 import org.springframework.batch.infrastructure.item.ItemWriter;
 import org.springframework.batch.infrastructure.item.database.JdbcBatchItemWriter;
@@ -12,13 +13,11 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
 import com.example.springbatch.constants.Messages;
 import com.example.springbatch.entity.TransactionRecord;
 import com.example.springbatch.enums.ReconciliationAction;
 import com.example.springbatch.enums.ReconciliationStatus;
-import com.example.springbatch.service.AuditLogService;
-
+import com.example.springbatch.repository.AuditLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,7 +28,7 @@ public class TransactionItemWriter implements ItemWriter<ReconciliationProcessin
 	private final NamedParameterJdbcTemplate jdbcTemplate;
 	private final JdbcBatchItemWriter<TransactionRecord> jdbcTransactionWriter;
 	private final ReconciliationCsvWriter reconciliationCsvWriter;
-	private final AuditLogService auditLogService;
+	private final AuditLogRepository auditLogRepository;
 
 	@Override
 	@Transactional
@@ -93,6 +92,18 @@ public class TransactionItemWriter implements ItemWriter<ReconciliationProcessin
 			}
 		}
 		reconciliationCsvWriter.writeResults(csvRows);
-		auditLogService.recordCsv1Chunk(results.size(), loadedCount, duplicateCount, invalidCount);
+		updateAudit(results.size(), loadedCount, duplicateCount, invalidCount);
+	}
+
+	private void updateAudit(long total, long loaded, long duplicate, long invalid) {
+		StepContext context = StepSynchronizationManager.getContext();
+		if (context == null) {
+			throw new IllegalStateException(Messages.STEP_CONTEXT_NOT_FOUND);
+		}
+		Long jobInstanceId = context.getStepExecution().getJobExecution().getJobInstance().getInstanceId();
+		int updated = auditLogRepository.incrementCounts(jobInstanceId, total, loaded, 0, 0, duplicate, invalid, 0);
+		if (updated != 1) {
+			throw new IllegalStateException("Audit summary not found for job instance " + jobInstanceId);
+		}
 	}
 }

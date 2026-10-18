@@ -263,4 +263,65 @@ class FileValidationServiceTest {
 
 		assertThrows(InvalidCsvFileException.class, () -> service.validateFile(new FileSystemResource(file), headers));
 	}
+
+	@Test
+	void shouldRejectResourceWhenReadingHeaderFails() {
+		Resource resource = new AbstractResource() {
+			@Override
+			public String getDescription() {
+				return "header-error.csv";
+			}
+
+			@Override
+			public String getFilename() {
+				return "header-error.csv";
+			}
+
+			@Override
+			public InputStream getInputStream() {
+				return new InputStream() {
+					@Override
+					public int read() throws IOException {
+						throw new IOException("Header read failed");
+					}
+				};
+			}
+		};
+
+		InvalidCsvFileException exception = assertThrows(InvalidCsvFileException.class,
+				() -> service.validateFile(resource, headers));
+
+		assertNotNull(exception.getMessage());
+	}
+
+	@Test
+	void shouldRejectResourceWhenClosingReaderFails() {
+		Resource resource = new AbstractResource() {
+			@Override
+			public String getDescription() {
+				return "close-error.csv";
+			}
+
+			@Override
+			public String getFilename() {
+				return "close-error.csv";
+			}
+
+			@Override
+			public InputStream getInputStream() {
+				return new ByteArrayInputStream(
+						("transaction_id,account_number,amount\nTX1,123,100").getBytes(StandardCharsets.UTF_8)) {
+					@Override
+					public void close() throws IOException {
+						throw new IOException("Stream close failed");
+					}
+				};
+			}
+		};
+
+		InvalidCsvFileException exception = assertThrows(InvalidCsvFileException.class,
+				() -> service.validateFile(resource, headers));
+
+		assertNotNull(exception.getMessage());
+	}
 }

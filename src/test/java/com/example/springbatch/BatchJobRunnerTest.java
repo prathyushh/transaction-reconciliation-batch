@@ -3,36 +3,23 @@ package com.example.springbatch;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.batch.core.job.Job;
-import org.springframework.batch.core.job.JobInstance;
 import org.springframework.batch.core.launch.JobOperator;
-import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.example.springbatch.batch.writer.ReconciliationCsvWriter;
-
 class BatchJobRunnerTest {
-
 	private JobOperator operator;
 	private Job job;
-	private JobRepository repository;
-	private ReconciliationCsvWriter csvWriter;
 	private BatchJobRunner runner;
 
 	@BeforeEach
 	void setUp() {
 		operator = mock(JobOperator.class);
 		job = mock(Job.class);
-		repository = mock(JobRepository.class);
-		csvWriter = mock(ReconciliationCsvWriter.class);
-
 		when(job.getName()).thenReturn("transactionReconciliationJob");
-
-		runner = new BatchJobRunner(operator, job, repository, csvWriter);
-
+		runner = new BatchJobRunner(operator, job);
 		ReflectionTestUtils.setField(runner, "runJob", true);
 		ReflectionTestUtils.setField(runner, "runId", 100L);
 	}
@@ -40,38 +27,29 @@ class BatchJobRunnerTest {
 	@Test
 	void shouldNotRunWhenDisabled() throws Exception {
 		ReflectionTestUtils.setField(runner, "runJob", false);
-
 		runner.run();
-
-		verifyNoInteractions(operator, repository, csvWriter);
+		verifyNoInteractions(operator);
 	}
 
 	@Test
-	void shouldInitializeCsvForNewJobInstance() throws Exception {
-		when(repository.getJobInstance(eq("transactionReconciliationJob"), any())).thenReturn(null);
-
+	void shouldRunJobWhenEnabled() throws Exception {
 		runner.run();
-
-		verify(csvWriter).initializeOutput();
 		verify(operator).run(eq(job), any());
 	}
 
 	@Test
-	void shouldPreserveCsvForExistingJobInstance() throws Exception {
-		when(repository.getJobInstance(eq("transactionReconciliationJob"), any())).thenReturn(mock(JobInstance.class));
-
+	void shouldPassConfiguredRunIdAsJobParameter() throws Exception {
 		runner.run();
-
-		verify(csvWriter, never()).initializeOutput();
-		verify(operator).run(eq(job), any());
+		org.mockito.ArgumentCaptor<org.springframework.batch.core.job.parameters.JobParameters> captor = org.mockito.ArgumentCaptor
+				.forClass(org.springframework.batch.core.job.parameters.JobParameters.class);
+		verify(operator).run(eq(job), captor.capture());
+		assertEquals(100L, captor.getValue().getLong("run.id"));
 	}
 
 	@Test
 	void shouldPropagateJobOperatorFailure() throws Exception {
-		when(repository.getJobInstance(eq("transactionReconciliationJob"), any())).thenReturn(mock(JobInstance.class));
-
 		when(operator.run(eq(job), any())).thenThrow(new IllegalStateException("Job launch failed"));
-
-		assertThrows(IllegalStateException.class, () -> runner.run());
+		IllegalStateException exception = assertThrows(IllegalStateException.class, () -> runner.run());
+		assertEquals("Job launch failed", exception.getMessage());
 	}
 }

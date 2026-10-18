@@ -6,18 +6,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
-
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.springframework.batch.core.scope.context.StepContext;
 import org.springframework.batch.core.scope.context.StepSynchronizationManager;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
 import com.example.springbatch.constants.Messages;
 import com.example.springbatch.enums.ReconciliationStatus;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
+@Slf4j
 public class ReconciliationCsvWriter {
 	private final Path outputPath;
 
@@ -25,13 +25,39 @@ public class ReconciliationCsvWriter {
 		this.outputPath = Path.of(outputPath);
 	}
 
-	public synchronized void initializeOutput() throws Exception {
+	private Path getOutputPath(long jobInstanceId) {
 		Path parent = outputPath.toAbsolutePath().getParent();
+		String filename = "reconciliation_" + jobInstanceId + ".csv";
+		return parent == null ? Path.of(filename) : parent.resolve(filename);
+	}
+
+	private StepContext getStepContext() {
+		StepContext context = StepSynchronizationManager.getContext();
+		if (context == null) {
+			throw new IllegalStateException(Messages.STEP_CONTEXT_NOT_FOUND);
+		}
+		return context;
+	}
+
+	private long getCurrentJobInstanceId() {
+		return getStepContext().getStepExecution().getJobExecution().getJobInstance().getInstanceId();
+	}
+
+	public synchronized void initializeOutput() throws Exception {
+		long jobInstanceId = getCurrentJobInstanceId();
+		Path instanceOutputPath = getOutputPath(jobInstanceId);
+		Path parent = instanceOutputPath.toAbsolutePath().getParent();
 		if (parent != null) {
 			Files.createDirectories(parent);
 		}
-		Files.writeString(outputPath, Messages.CSV_OUTPUTFILE_HEADER + System.lineSeparator(), StandardCharsets.UTF_8,
-				StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+		if (Files.notExists(instanceOutputPath)) {
+			try {
+				Files.writeString(instanceOutputPath, Messages.CSV_OUTPUTFILE_HEADER + System.lineSeparator(),
+						StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+				log.info("Created reconciliation CSV: {}", instanceOutputPath.toAbsolutePath());
+			} catch (java.nio.file.FileAlreadyExistsException exception) {
+			}
+		} 
 	}
 
 	public synchronized void writeResults(List<ReconciliationProcessingResult> results) throws Exception {
@@ -44,17 +70,12 @@ public class ReconciliationCsvWriter {
 		if (rows.isEmpty()) {
 			return;
 		}
-		StepContext context = StepSynchronizationManager.getContext();
-		if (context == null) {
-			throw new IllegalStateException(Messages.STEP_CONTEXT_NOT_FOUND);
-		}
+		StepContext context = getStepContext();
 		long jobInstanceId = context.getStepExecution().getJobExecution().getJobInstance().getInstanceId();
 		Long jobExecutionId = context.getStepExecution().getJobExecution().getId();
-		Path parent = outputPath.toAbsolutePath().getParent();
-		if (parent != null) {
-			Files.createDirectories(parent);
-		}
-		try (BufferedWriter writer = Files.newBufferedWriter(outputPath, StandardCharsets.UTF_8,
+		initializeOutput();
+		Path instanceOutputPath = getOutputPath(jobInstanceId);
+		try (BufferedWriter writer = Files.newBufferedWriter(instanceOutputPath, StandardCharsets.UTF_8,
 				StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 				CSVPrinter printer = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
 			for (ReconciliationProcessingResult result : rows) {
@@ -68,6 +89,7 @@ public class ReconciliationCsvWriter {
 						result.input() == null ? "" : result.input().getLineNumber(), transactionId,
 						result.status().name(), result.action().name(), errorMessage, previousAmount, newAmount);
 			}
+			printer.flush();
 		}
 	}
 }

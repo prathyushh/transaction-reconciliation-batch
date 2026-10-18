@@ -29,6 +29,7 @@ import com.example.springbatch.repository.TransactionRecordRepository;
 
 @Configuration
 public class BatchConfig {
+
 	@Bean
 	public Step csv1FileValidationStep(JobRepository repository, PlatformTransactionManager transactionManager,
 			@Qualifier("csv1FileValidationTasklet") FileValidationTasklet tasklet) {

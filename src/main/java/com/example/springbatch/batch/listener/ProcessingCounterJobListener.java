@@ -1,50 +1,52 @@
 package com.example.springbatch.batch.listener;
 
 import java.time.LocalDateTime;
-import java.util.List;
-
 import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.listener.JobExecutionListener;
-import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
 import com.example.springbatch.constants.Messages;
 import com.example.springbatch.entity.AuditLog;
 import com.example.springbatch.repository.AuditLogRepository;
-import com.example.springbatch.service.AuditLogService;
-
 import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
 public class ProcessingCounterJobListener implements JobExecutionListener {
-	private final AuditLogService auditLogService;
 	private final AuditLogRepository auditLogRepository;
-	private final JobRepository jobRepository;
 
 	@Override
 	@Transactional
 	public void beforeJob(JobExecution jobExecution) {
-		Long currentExecutionId = jobExecution.getId();
-		List<Long> executionIds = jobRepository.getJobExecutions(jobExecution.getJobInstance()).stream()
-				.map(JobExecution::getId).filter(id -> id != null && !id.equals(currentExecutionId)).toList();
-		AuditLog existingSummary = executionIds.isEmpty() ? null
-				: auditLogRepository
-						.findFirstByJobExecutionIdInAndEventTypeOrderByIdAsc(executionIds, Messages.SUMMARY_EVENT)
-						.orElse(null);
-		if (existingSummary != null) {
-			existingSummary.setJobExecutionId(currentExecutionId);
-			existingSummary.setStatus("STARTED");
-			existingSummary.setEventTimestamp(LocalDateTime.now());
-			auditLogRepository.save(existingSummary);
-		} else {
-			auditLogService.initializeSummary(currentExecutionId);
-		}
+		Long jobInstanceId = jobExecution.getJobInstance().getInstanceId();
+		AuditLog audit = auditLogRepository.findByJobInstanceId(jobInstanceId)
+				.orElseGet(() -> createAudit(jobExecution, jobInstanceId));
+		audit.setJobExecutionId(jobExecution.getId());
+		audit.setStatus("STARTED");
+		audit.setEventTimestamp(LocalDateTime.now());
+		auditLogRepository.save(audit);
+	}
+
+	private AuditLog createAudit(JobExecution jobExecution, Long jobInstanceId) {
+		LocalDateTime now = LocalDateTime.now();
+		return AuditLog.builder().jobInstanceId(jobInstanceId).jobExecutionId(jobExecution.getId())
+				.eventType(Messages.SUMMARY_EVENT).status("STARTED").eventTimestamp(now).details(Messages.AUDIT_DETAIL)
+				.totalRecords(0L).loadedRecords(0L).matchedRecords(0L).mismatchedRecords(0L).duplicateRecords(0L)
+				.invalidRecords(0L).missingInDatabaseRecords(0L).build();
 	}
 
 	@Override
+	@Transactional
 	public void afterJob(JobExecution jobExecution) {
-		auditLogService.finishSummary(jobExecution.getId(), jobExecution.getStatus().name());
+		Long jobInstanceId = jobExecution.getJobInstance().getInstanceId();
+		auditLogRepository.findByJobInstanceId(jobInstanceId).ifPresent(audit -> {
+			audit.setStatus(jobExecution.getStatus().name());
+			if (jobExecution.getEndTime() != null) {
+				audit.setEventTimestamp(jobExecution.getEndTime());
+			} else {
+				audit.setEventTimestamp(LocalDateTime.now());
+			}
+			auditLogRepository.save(audit);
+		});
 	}
 }

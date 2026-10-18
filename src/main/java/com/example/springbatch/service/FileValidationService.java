@@ -21,8 +21,7 @@ public class FileValidationService {
 
 	public void validateFile(Resource resource, List<String> expectedHeaders) {
 		if (!resource.exists() || !resource.isReadable()) {
-			throw new InvalidCsvFileException(
-				Messages.INPUT_CSV_NOT_READABLE + resource.getDescription());
+			throw new InvalidCsvFileException(Messages.INPUT_CSV_NOT_READABLE + resource.getDescription());
 		}
 		String filename = resource.getFilename();
 		if (filename == null || !filename.toLowerCase(Locale.ROOT).endsWith(".csv")) {
@@ -32,9 +31,8 @@ public class FileValidationService {
 			long fileSize = resource.contentLength();
 
 			if (fileSize > maxFileSize) {
-				throw new InvalidCsvFileException(
-						Messages.INPUT_CSV_FILE_SIZE_EXCEEDS + (maxFileSize / (1024 * 1024))
-								+ " MB. Actual size: " + String.format("%.2f MB", fileSize / (1024.0 * 1024.0)));
+				throw new InvalidCsvFileException(Messages.INPUT_CSV_FILE_SIZE_EXCEEDS + (maxFileSize / (1024 * 1024))
+						+ " MB. Actual size: " + String.format("%.2f MB", fileSize / (1024.0 * 1024.0)));
 			}
 		} catch (InvalidCsvFileException ex) {
 			throw ex;

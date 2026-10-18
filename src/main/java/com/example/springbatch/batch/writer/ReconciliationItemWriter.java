@@ -3,16 +3,16 @@ package com.example.springbatch.batch.writer;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-
+import org.springframework.batch.core.scope.context.StepContext;
+import org.springframework.batch.core.scope.context.StepSynchronizationManager;
 import org.springframework.batch.infrastructure.item.Chunk;
 import org.springframework.batch.infrastructure.item.ItemWriter;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.example.springbatch.constants.Messages;
 import com.example.springbatch.entity.TransactionRecord;
+import com.example.springbatch.repository.AuditLogRepository;
 import com.example.springbatch.repository.TransactionRecordRepository;
-import com.example.springbatch.service.AuditLogService;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,10 +22,8 @@ import lombok.extern.slf4j.Slf4j;
 public class ReconciliationItemWriter implements ItemWriter<ReconciliationProcessingResult> {
 	private final TransactionRecordRepository transactionRecordRepository;
 	private final ReconciliationCsvWriter reconciliationCsvWriter;
-	private final AuditLogService auditLogService;
+	private final AuditLogRepository auditLogRepository;
 
-	// private static final int FAIL_AFTER_CHUNKS = 2;
-	// private int processedChunks = 0;
 	@Override
 	@Transactional
 	public void write(Chunk<? extends ReconciliationProcessingResult> chunk) throws Exception {
@@ -48,7 +46,8 @@ public class ReconciliationItemWriter implements ItemWriter<ReconciliationProces
 					transactionRecordRepository.save(transaction);
 					mismatchedCount++;
 				} else {
-					log.warn("Cannot update transaction amount because the transaction, input, or CSV2 amount is null");
+					log.warn("Cannot update transaction amount because " + "the transaction, input, or CSV2 amount "
+							+ "is null");
 				}
 			}
 			case MISSING_IN_DATABASE -> missingCount++;
@@ -56,15 +55,19 @@ public class ReconciliationItemWriter implements ItemWriter<ReconciliationProces
 			}
 		}
 		reconciliationCsvWriter.writeResults(results);
-		auditLogService.recordCsv2Chunk(results.size(), matchedCount, mismatchedCount, missingCount);
+		// throw new RuntimeException("TEST FAILURE: after reconciliation CSV write");
+		updateAudit(results.size(), matchedCount, mismatchedCount, missingCount);
+	}
 
-		// TEMPORARY: Simulate failure to test restartability
-		// processedChunks++;
-
-//		if (processedChunks == FAIL_AFTER_CHUNKS) {
-//			log.error("TEST EXCEPTION: Simulating failure after chunk {}", processedChunks);
-//
-//			throw new RuntimeException("TEST EXCEPTION: Simulating failure to test restartability");
-//		}
+	private void updateAudit(long total, long matched, long mismatched, long missing) {
+		StepContext context = StepSynchronizationManager.getContext();
+		if (context == null) {
+			throw new IllegalStateException(Messages.STEP_CONTEXT_NOT_FOUND);
+		}
+		Long jobInstanceId = context.getStepExecution().getJobExecution().getJobInstance().getInstanceId();
+		int updated = auditLogRepository.incrementCounts(jobInstanceId, total, 0, matched, mismatched, 0, 0, missing);
+		if (updated != 1) {
+			throw new IllegalStateException("Audit summary not found for job instance " + jobInstanceId);
+		}
 	}
 }

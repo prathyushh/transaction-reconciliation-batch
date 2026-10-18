@@ -26,9 +26,9 @@ public class TransactionItemProcessor implements ItemProcessor<TransactionReques
 			if (input == null) {
 				throw new InvalidCsvRecordException(Messages.EMPTY_RECORD);
 			}
-//            if(input.getLineNumber()==500) {
-//            	throw new RuntimeException("pause");
-//            }
+//			if (input.getLineNumber() == 3578) {
+//				throw new RuntimeException("pause");
+//			}
 			String transactionId = required(input.getTransactionId(), "transaction_id");
 			String accountNumber = required(input.getAccountNumber(), "account_number");
 			String transactionDate = required(input.getTransactionDate(), "transaction_date");
