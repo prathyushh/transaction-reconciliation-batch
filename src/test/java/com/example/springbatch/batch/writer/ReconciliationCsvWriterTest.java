@@ -35,7 +35,7 @@ class ReconciliationCsvWriterTest {
 	@BeforeEach
 	void setUp() {
 		output = tempDir.resolve("nested/reconciliation_100.csv");
-		writer = new ReconciliationCsvWriter(tempDir.resolve("nested/result.csv").toString());
+		writer = new ReconciliationCsvWriter(tempDir.resolve("nested").toString());
 	}
 
 	@AfterEach
@@ -140,7 +140,6 @@ class ReconciliationCsvWriterTest {
 				input("TX101", null, 1L), "Invalid amount", null);
 
 		withStepContext(100L, 200L, () -> writer.writeResults(List.of(first)));
-
 		withStepContext(101L, 201L, () -> writer.writeResults(List.of(second)));
 
 		Path firstOutput = output.getParent().resolve("reconciliation_100.csv");
@@ -218,6 +217,7 @@ class ReconciliationCsvWriterTest {
 		withStepContext(() -> writer.writeResults(List.of(invalid)));
 
 		String content = Files.readString(output);
+
 		assertTrue(content.contains(Messages.CSV_OUTPUTFILE_HEADER));
 		assertTrue(content.contains("TX1"));
 		assertTrue(content.contains("INVALID_RECORD"));
@@ -233,6 +233,7 @@ class ReconciliationCsvWriterTest {
 		withStepContext(() -> writer.writeResults(List.of(duplicate)));
 
 		String content = Files.readString(output);
+
 		assertTrue(content.contains("TX2"));
 		assertTrue(content.contains("DUPLICATE_IN_CSV1"));
 		assertTrue(content.contains("Duplicate transaction"));
@@ -247,6 +248,7 @@ class ReconciliationCsvWriterTest {
 		withStepContext(() -> writer.writeResults(List.of(mismatch)));
 
 		String content = Files.readString(output);
+
 		assertTrue(content.contains("TX3"));
 		assertTrue(content.contains("MISMATCH"));
 		assertTrue(content.contains("UPDATE_AMOUNT"));
@@ -263,6 +265,7 @@ class ReconciliationCsvWriterTest {
 		withStepContext(() -> writer.writeResults(List.of(missing)));
 
 		String content = Files.readString(output);
+
 		assertTrue(content.contains("TX4"));
 		assertTrue(content.contains("MISSING_IN_DATABASE"));
 		assertTrue(content.contains("REPORT"));
@@ -277,6 +280,7 @@ class ReconciliationCsvWriterTest {
 		withStepContext(() -> writer.writeResults(List.of(invalid)));
 
 		String content = Files.readString(output);
+
 		assertTrue(content.contains("INVALID_RECORD"));
 		assertTrue(content.contains("SKIP"));
 		assertFalse(content.contains("null"));
@@ -290,6 +294,7 @@ class ReconciliationCsvWriterTest {
 		withStepContext(() -> writer.writeResults(List.of(invalid)));
 
 		String content = Files.readString(output);
+
 		assertTrue(content.contains("INVALID_RECORD"));
 		assertTrue(content.contains("SKIP"));
 		assertFalse(content.contains("null"));
@@ -303,6 +308,7 @@ class ReconciliationCsvWriterTest {
 		withStepContext(() -> writer.writeResults(List.of(mismatch)));
 
 		String content = Files.readString(output);
+
 		assertTrue(content.contains("TX5"));
 		assertTrue(content.contains("MISMATCH"));
 		assertTrue(content.contains("UPDATE_AMOUNT"));
@@ -317,6 +323,7 @@ class ReconciliationCsvWriterTest {
 		withStepContext(() -> writer.writeResults(List.of(mismatch)));
 
 		String content = Files.readString(output);
+
 		assertTrue(content.contains("TX8"));
 		assertTrue(content.contains("MISMATCH"));
 		assertTrue(content.contains("300.00"));
@@ -330,6 +337,7 @@ class ReconciliationCsvWriterTest {
 		withStepContext(() -> writer.writeResults(List.of(mismatch)));
 
 		String content = Files.readString(output);
+
 		assertTrue(content.contains("MISMATCH"));
 		assertTrue(content.contains("UPDATE_AMOUNT"));
 		assertTrue(content.contains("Input unavailable"));
@@ -344,6 +352,7 @@ class ReconciliationCsvWriterTest {
 		withStepContext(() -> writer.writeResults(List.of(invalid)));
 
 		String content = Files.readString(output);
+
 		assertTrue(content.contains("INVALID_RECORD"));
 		assertTrue(content.contains("Invalid input"));
 		assertTrue(content.contains("10.00"));
@@ -357,6 +366,7 @@ class ReconciliationCsvWriterTest {
 		withStepContext((Long) null, () -> writer.writeResults(List.of(invalid)));
 
 		String content = Files.readString(output);
+
 		assertTrue(content.contains("TX9"));
 		assertTrue(content.contains("INVALID_RECORD"));
 	}

@@ -27,9 +27,8 @@ public class ReconciliationCsvWriter {
 	}
 
 	private Path getOutputPath(long jobInstanceId) {
-		Path parent = outputPath.toAbsolutePath().getParent();
 		String filename = "reconciliation_" + jobInstanceId + ".csv";
-		return parent == null ? Path.of(filename) : parent.resolve(filename);
+		return outputPath.resolve(filename);
 	}
 
 	private StepContext getStepContext() {
@@ -77,6 +76,7 @@ public class ReconciliationCsvWriter {
 		Long jobExecutionId = context.getStepExecution().getJobExecution().getId();
 		initializeOutput();
 		Path instanceOutputPath = getOutputPath(jobInstanceId);
+
 		try (BufferedWriter writer = Files.newBufferedWriter(instanceOutputPath, StandardCharsets.UTF_8,
 				StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 				CSVPrinter printer = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
