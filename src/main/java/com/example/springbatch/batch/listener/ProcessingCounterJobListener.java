@@ -1,13 +1,15 @@
 package com.example.springbatch.batch.listener;
 
 import java.time.LocalDateTime;
+
 import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.listener.JobExecutionListener;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+
 import com.example.springbatch.constants.Messages;
 import com.example.springbatch.entity.AuditLog;
 import com.example.springbatch.repository.AuditLogRepository;
+
 import lombok.RequiredArgsConstructor;
 
 @Component
@@ -16,7 +18,6 @@ public class ProcessingCounterJobListener implements JobExecutionListener {
 	private final AuditLogRepository auditLogRepository;
 
 	@Override
-	@Transactional
 	public void beforeJob(JobExecution jobExecution) {
 		Long jobInstanceId = jobExecution.getJobInstance().getInstanceId();
 		AuditLog audit = auditLogRepository.findByJobInstanceId(jobInstanceId)
@@ -36,7 +37,6 @@ public class ProcessingCounterJobListener implements JobExecutionListener {
 	}
 
 	@Override
-	@Transactional
 	public void afterJob(JobExecution jobExecution) {
 		Long jobInstanceId = jobExecution.getJobInstance().getInstanceId();
 		auditLogRepository.findByJobInstanceId(jobInstanceId).ifPresent(audit -> {

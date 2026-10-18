@@ -63,13 +63,6 @@ class FileValidationServiceTest {
 	}
 
 	@Test
-	void shouldAcceptBomBeforeHeader() throws Exception {
-		Path file = createFile("bom.csv", "\uFEFFtransaction_id,account_number,amount\nTX1,123,100");
-
-		assertDoesNotThrow(() -> service.validateFile(new FileSystemResource(file), headers));
-	}
-
-	@Test
 	void shouldRejectMissingFile() {
 		Path file = tempDir.resolve("missing.csv");
 
@@ -104,6 +97,19 @@ class FileValidationServiceTest {
 				() -> service.validateFile(new FileSystemResource(file), headers));
 
 		assertTrue(exception.getMessage().startsWith(Messages.INPUT_CSV_FILE_SIZE_EXCEEDS));
+	}
+
+	@Test
+	void shouldAcceptFileWhenSizeEqualsMaximumAllowedSize() throws Exception {
+		Path file = createFile("boundary.csv", "transaction_id,account_number,amount\nTX1,123,100");
+
+		long actualSize = Files.size(file);
+
+		var field = FileValidationService.class.getDeclaredField("maxFileSize");
+		field.setAccessible(true);
+		field.setLong(service, actualSize);
+
+		assertDoesNotThrow(() -> service.validateFile(new FileSystemResource(file), headers));
 	}
 
 	@Test
@@ -197,6 +203,34 @@ class FileValidationServiceTest {
 	}
 
 	@Test
+	void shouldAcceptValidCsvWhenContentLengthIsZero() {
+		Resource resource = new AbstractResource() {
+			@Override
+			public String getDescription() {
+				return "zero-length-metadata.csv";
+			}
+
+			@Override
+			public String getFilename() {
+				return "zero-length-metadata.csv";
+			}
+
+			@Override
+			public long contentLength() {
+				return 0L;
+			}
+
+			@Override
+			public InputStream getInputStream() {
+				return new ByteArrayInputStream(
+						("transaction_id,account_number,amount\nTX1,123,100").getBytes(StandardCharsets.UTF_8));
+			}
+		};
+
+		assertDoesNotThrow(() -> service.validateFile(resource, headers));
+	}
+
+	@Test
 	void shouldRejectResourceWhenInputStreamFails() {
 		Resource resource = new AbstractResource() {
 			@Override
@@ -278,6 +312,11 @@ class FileValidationServiceTest {
 			}
 
 			@Override
+			public long contentLength() {
+				return 10L;
+			}
+
+			@Override
 			public InputStream getInputStream() {
 				return new InputStream() {
 					@Override
@@ -291,7 +330,7 @@ class FileValidationServiceTest {
 		InvalidCsvFileException exception = assertThrows(InvalidCsvFileException.class,
 				() -> service.validateFile(resource, headers));
 
-		assertNotNull(exception.getMessage());
+		assertEquals(Messages.CSV_VALIDATION_FAILED + "header-error.csv", exception.getMessage());
 	}
 
 	@Test

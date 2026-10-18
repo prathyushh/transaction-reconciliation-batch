@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 public class Messages {
 	public static final String INPUT_CSV_NOT_READABLE = "Input CSV does not exist or is not readable: ";
 	public static final String INPUT_CSV_EXTENSION_NOT_CORRECT = "Input file must have a .csv extension: ";
-	public static final String INPUT_CSV_FILE_SIZE_EXCEEDS = "CSV file exceeds the maximum allowed size of ";
+	public static final String INPUT_CSV_FILE_SIZE_EXCEEDS = "CSV file exceeds the maximum allowed size";
 	public static final String INVALID_CSV_FILE = "Invalid CSV file";
 	public static final String CSV_EMPTY_NO_HEADER = "Input CSV is empty or has no header: ";
 	public static final String CSV_VALIDATION_FAILED = "Failed to validate CSV file: ";

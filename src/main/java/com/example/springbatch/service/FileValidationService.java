@@ -31,8 +31,7 @@ public class FileValidationService {
 			long fileSize = resource.contentLength();
 
 			if (fileSize > maxFileSize) {
-				throw new InvalidCsvFileException(Messages.INPUT_CSV_FILE_SIZE_EXCEEDS + (maxFileSize / (1024 * 1024))
-						+ " MB. Actual size: " + String.format("%.2f MB", fileSize / (1024.0 * 1024.0)));
+				throw new InvalidCsvFileException(Messages.INPUT_CSV_FILE_SIZE_EXCEEDS);
 			}
 		} catch (InvalidCsvFileException ex) {
 			throw ex;
@@ -44,9 +43,6 @@ public class FileValidationService {
 			String header = reader.readLine();
 			if (header == null || header.isBlank()) {
 				throw new InvalidCsvFileException(Messages.CSV_EMPTY_NO_HEADER + filename);
-			}
-			if (header.startsWith("\uFEFF")) {
-				header = header.substring(1);
 			}
 			List<String> actualHeaders = Arrays.stream(header.split(",", -1)).map(String::trim).toList();
 			if (!expectedHeaders.equals(actualHeaders)) {

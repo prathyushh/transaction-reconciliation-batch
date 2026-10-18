@@ -2,6 +2,7 @@ package com.example.springbatch.batch.writer;
 
 import java.io.BufferedWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -55,9 +56,10 @@ public class ReconciliationCsvWriter {
 				Files.writeString(instanceOutputPath, Messages.CSV_OUTPUTFILE_HEADER + System.lineSeparator(),
 						StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
 				log.info("Created reconciliation CSV: {}", instanceOutputPath.toAbsolutePath());
-			} catch (java.nio.file.FileAlreadyExistsException exception) {
+			} catch (FileAlreadyExistsException exception) {
+				log.debug("Reconciliation CSV already exists: {}", instanceOutputPath);
 			}
-		} 
+		}
 	}
 
 	public synchronized void writeResults(List<ReconciliationProcessingResult> results) throws Exception {

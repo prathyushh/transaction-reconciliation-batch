@@ -46,8 +46,7 @@ public class ReconciliationItemWriter implements ItemWriter<ReconciliationProces
 					transactionRecordRepository.save(transaction);
 					mismatchedCount++;
 				} else {
-					log.warn("Cannot update transaction amount because " + "the transaction, input, or CSV2 amount "
-							+ "is null");
+					log.warn("Cannot update transaction amount because the transaction, input, or CSV2 amount is null");
 				}
 			}
 			case MISSING_IN_DATABASE -> missingCount++;
